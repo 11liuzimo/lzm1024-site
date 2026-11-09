@@ -360,10 +360,12 @@ def user_list():
 @app.route('/lt')
 def chat_list():
     current_id = session.get('user_id')
-    if not current_id: return redirect(url_for('index'))
-    
+    if not current_id:
+        return redirect(url_for('index'))
+        
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
+    
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ?''', (current_id, current_id, current_id))
     chat_users = c.fetchall()
     
@@ -382,21 +384,57 @@ def chat_list():
             short_content = (last_msg[0][:12] + "...") if last_msg and len(last_msg[0]) > 12 else (last_msg[0] if last_msg else "")
             
             chat_html += f"""<a href="/lt/{other_id}" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:#333;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:15px;">{avatar_html}<div style="font-size:16px; font-weight:bold;">{nickname}</div></div><div style="color:#999; font-size:13px; text-align:right; max-width: 50%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{short_content}</div></a>"""
-    if not chat_html: chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
-    
-    conn.close() # <--- 关键：关闭连接移到这里！
+    if not chat_html:
+        chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
+        
+    conn.close()
 
-    nav = f'<div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/" style="color:#666; text-decoration:none; margin-right:15px;">首页</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>'
-    
     return f"""
-    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>我的私信</title>
-    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; overflow:hidden; }}.header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}.header h2 {{ margin:0; color:#333; font-size:18px; }}</style>
-    </head><body>{nav}
-        <div class="container">
-            <div class="header"><svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><h2>私信</h2></div>
-            <div>{chat_html}</div>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>我的私信</title>
+        <style>
+            body {{ margin:0; background:#f5f5f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
+            .layout {{ display: flex; max-width: 900px; margin: 20px auto; gap: 20px; padding: 0 10px; }}
+            .sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}
+            .sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}
+            .sidebar-icon svg {{ width: 22px; height: 22px; }}
+            .sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}
+            .main-content {{ flex: 1; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
+            .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}
+            .header h2 {{ margin:0; color:#333; font-size:18px; }}
+        </style>
+    </head>
+    <body>
+        <!-- 顶部导航 -->
+        <div class="top-nav">
+            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
+            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
         </div>
-    </body></html>
+
+        <div class="layout">
+            <!-- 左侧边栏 -->
+            <div class="sidebar">
+                <a href="/" title="首页" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+                <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
+                <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
+                <a href="/lt" title="私信" class="sidebar-icon" style="color:#2c7be5; background-color:#f0f7ff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+            </div>
+
+            <!-- 右侧私信列表 -->
+            <div class="main-content">
+                <div class="header">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                    <h2>私信</h2>
+                </div>
+                <div>{chat_html}</div>
+            </div>
+        </div>
+    </body>
+    </html>
     """
 
 @app.route('/lt/<other_id>', methods=['GET', 'POST'])
