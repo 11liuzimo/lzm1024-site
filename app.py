@@ -366,7 +366,6 @@ def chat_list():
     c = conn.cursor()
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ?''', (current_id, current_id, current_id))
     chat_users = c.fetchall()
-    conn.close() 
     
     chat_html = ""
     for u in chat_users:
@@ -385,6 +384,8 @@ def chat_list():
             chat_html += f"""<a href="/lt/{other_id}" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:#333;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:15px;">{avatar_html}<div style="font-size:16px; font-weight:bold;">{nickname}</div></div><div style="color:#999; font-size:13px; text-align:right; max-width: 50%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{short_content}</div></a>"""
     if not chat_html: chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
     
+    conn.close() # <--- 关键：关闭连接移到这里！
+
     nav = f'<div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/" style="color:#666; text-decoration:none; margin-right:15px;">首页</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>'
     
     return f"""
