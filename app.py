@@ -30,6 +30,13 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   content TEXT, 
                   publish_time TEXT)''')
+    # 新增：日记表
+    c.execute('''CREATE TABLE IF NOT EXISTS diaries
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  user_id TEXT, 
+                  title TEXT, 
+                  content TEXT, 
+                  create_time TEXT)''')
                  
     c.execute("SELECT * FROM users WHERE username='lzm1024' AND role='大管理员'")
     if not c.fetchone():
@@ -44,6 +51,7 @@ def init_db():
     conn.commit()
     conn.close()
 
+# ================= 1. 首页 =================
 # ================= 1. 首页 =================
 @app.route('/')
 def index():
@@ -63,6 +71,7 @@ def index():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     
+    # 1. 获取最新公告
     c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
     latest_ann = c.fetchone()
     ann_html = ""
@@ -77,15 +86,23 @@ def index():
     else:
         ann_html = "<div style='background:#fff; border-radius:8px; border:1px solid #eee; padding:20px; margin-bottom:20px; color:#999; text-align:center;'>暂无公告</div>"
 
+    # 2. 获取最新3条论坛留言
     c.execute("SELECT user_id, username, message FROM visitors ORDER BY id DESC LIMIT 3")
     recent_msgs = c.fetchall()
     
+    # 3. 获取最新4个注册用户
     c.execute("SELECT user_id, nickname, username, role, avatar FROM users WHERE role != '大管理员' ORDER BY id DESC LIMIT 4")
     recent_users = c.fetchall()
     
+    # 4. 获取最近聊天的3个用户
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ? LIMIT 3''', (user_id, user_id, user_id))
     recent_chats = c.fetchall()
+
+    # 5. 获取最近的3篇日记
+    c.execute("SELECT id, title, create_time FROM diaries WHERE user_id=? ORDER BY id DESC LIMIT 3", (user_id,))
+    recent_diaries = c.fetchall()
     
+    # --- 拼装 HTML ---
     forum_html = ""
     for m in recent_msgs:
         m_uid, m_uname, m_text = m
@@ -128,13 +145,24 @@ def index():
             avatar_html = f"<img src='{avatar}' style='width:40px; height:40px; border-radius:50%; object-fit:cover;'>" if avatar else f"<div style='width:40px; height:40px; border-radius:50%; background:#ccc; display:flex; justify-content:center; align-items:center; color:#fff; font-size:16px;'>{nickname[0].upper()}</div>"
             
             recent_chat_html += f"""
-            <a href="/lt/{other_id}" style="text-decoration:none; color:#333; display:flex; flex-direction:column; align-items:center; gap:5px; padding:10px; border-radius:8px; transition:0.2s;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
+            <a href="/lt/{other_id}" style="text-decoration:none; color:#333; display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
                 {avatar_html}
                 <span style="font-size:13px; color:#2c7be5; font-weight:bold;">{nickname}</span>
             </a>
             """
     if not recent_chat_html:
         recent_chat_html = "<p style='color:#999; font-size:13px;'>暂无聊天记录，快去私信找人聊天吧！</p>"
+
+    diary_html = ""
+    for d in recent_diaries:
+        diary_html += f"""
+        <div style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:left; font-size:13px;">
+            <a href="/diary/{d[0]}" style="color:#333; text-decoration:none; font-weight:bold;">{d[1]}</a>
+            <div style="font-size:11px; color:#aaa; margin-top:2px;">📅 {d[2]}</div>
+        </div>
+        """
+    if not diary_html:
+        diary_html = "<p style='color:#999; font-size:13px;'>还没有写过日记，快去记录吧！</p>"
 
     conn.close()
 
@@ -154,35 +182,51 @@ def index():
         <style>
             body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
             .container {{ max-width: 1000px; margin: 30px auto; padding: 0 20px; }}
-            .grid-layout {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 20px; }}
-            .module-card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; flex-direction: column; }}
+            
+            /* 核心：强制 2x2 网格布局 */
+            .grid-layout {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }}
+            
+            /* 卡片统一高度 */
+            .module-card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; flex-direction: column; height: 220px; }}
             .module-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2c7be5; padding-bottom: 8px; margin-bottom: 10px; }}
             .module-title {{ margin: 0; color: #333; font-size: 16px; font-weight: bold; }}
             .module-more {{ text-decoration: none; color: #2c7be5; font-size: 12px; }}
             .module-more:hover {{ text-decoration: underline; }}
-            .module-content {{ flex: 1; display: flex; flex-direction: column; justify-content: space-between; }}
+            .module-content {{ flex: 1; overflow-y: auto; padding-right: 5px; }}
         </style>
     </head>
     <body>
         {nav}
         <div class="container">
-            {ann_html}
+            <!-- 公告横跨两列 -->
+            <div style="grid-column: span 2;">
+                {ann_html}
+            </div>
+            
+            <!-- 四大金刚 -->
             <div class="grid-layout">
+                <!-- 1. 公共论坛 -->
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">📝 公共论坛</h3><a href="/gglt" class="module-more">进入 →</a></div>
-                    <div class="module-content"><div>{forum_html}</div></div>
-                </div>
-                
-                <div class="module-card">
-                    <div class="module-header"><h3 class="module-title">👥 活跃用户</h3><a href="/user" class="module-more">查看全部 →</a></div>
-                    <div class="module-content"><div>{users_html}</div></div>
+                    <div class="module-content">{forum_html}</div>
                 </div>
 
+                <!-- 2. 活跃用户 -->
+                <div class="module-card">
+                    <div class="module-header"><h3 class="module-title">👥 活跃用户</h3><a href="/user" class="module-more">查看全部 →</a></div>
+                    <div class="module-content">{users_html}</div>
+                </div>
+
+                <!-- 3. 最近私信 -->
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">💬 最近私信</h3><a href="/lt" class="module-more">进入 →</a></div>
-                    <div class="module-content">
-                        <div style="display:flex; gap:10px; flex-wrap: wrap; padding: 10px 0;">{recent_chat_html}</div>
-                    </div>
+                    <div class="module-content">{recent_chat_html}</div>
+                </div>
+
+                <!-- 4. 我的日记 -->
+                <div class="module-card">
+                    <div class="module-header"><h3 class="module-title">📔 我的日记</h3><a href="/diary" class="module-more">进入 →</a></div>
+                    <div class="module-content">{diary_html}</div>
                 </div>
             </div>
         </div>
@@ -360,12 +404,10 @@ def user_list():
 @app.route('/lt')
 def chat_list():
     current_id = session.get('user_id')
-    if not current_id:
-        return redirect(url_for('index'))
-        
+    if not current_id: return redirect(url_for('index'))
+    
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ?''', (current_id, current_id, current_id))
     chat_users = c.fetchall()
     
@@ -384,57 +426,20 @@ def chat_list():
             short_content = (last_msg[0][:12] + "...") if last_msg and len(last_msg[0]) > 12 else (last_msg[0] if last_msg else "")
             
             chat_html += f"""<a href="/lt/{other_id}" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:#333;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:15px;">{avatar_html}<div style="font-size:16px; font-weight:bold;">{nickname}</div></div><div style="color:#999; font-size:13px; text-align:right; max-width: 50%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{short_content}</div></a>"""
-    if not chat_html:
-        chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
-        
+    if not chat_html: chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
+    
     conn.close()
 
     return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>我的私信</title>
-        <style>
-            body {{ margin:0; background:#f5f5f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-            .layout {{ display: flex; max-width: 900px; margin: 20px auto; gap: 20px; padding: 0 10px; }}
-            .sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}
-            .sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}
-            .sidebar-icon svg {{ width: 22px; height: 22px; }}
-            .sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}
-            .main-content {{ flex: 1; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
-            .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}
-            .header h2 {{ margin:0; color:#333; font-size:18px; }}
-        </style>
-    </head>
-    <body>
-        <!-- 顶部导航 -->
-        <div class="top-nav">
-            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
-            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>我的私信</title>
+    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; overflow:hidden; }}.header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}.header h2 {{ margin:0; color:#333; font-size:18px; }}</style>
+    </head><body>
+        <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/" style="color:#666; text-decoration:none; margin-right:15px;">首页</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>
+        <div class="container">
+            <div class="header"><svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><h2>私信</h2></div>
+            <div>{chat_html}</div>
         </div>
-
-        <div class="layout">
-            <!-- 左侧边栏 -->
-            <div class="sidebar">
-                <a href="/" title="首页" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
-                <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
-                <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
-                <a href="/lt" title="私信" class="sidebar-icon" style="color:#2c7be5; background-color:#f0f7ff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
-            </div>
-
-            <!-- 右侧私信列表 -->
-            <div class="main-content">
-                <div class="header">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-                    <h2>私信</h2>
-                </div>
-                <div>{chat_html}</div>
-            </div>
-        </div>
-    </body>
-    </html>
+    </body></html>
     """
 
 @app.route('/lt/<other_id>', methods=['GET', 'POST'])
@@ -516,7 +521,7 @@ def chat_room(other_id):
     </body></html>
     """
 
-# ================= 5. 个人中心 & 反馈提交 =================
+# ================= 5. 个人中心 =================
 @app.route('/user/<uid>', methods=['GET', 'POST'])
 def profile(uid):
     current_user = session.get('username')
@@ -561,7 +566,7 @@ def profile(uid):
             conn.commit()
             return redirect(url_for('profile', uid=uid))
             
-    # 3. 处理管理员发布公告（无需申请，直接发布）
+    # 3. 处理管理员发布公告
     if request.method == 'POST' and 'publish_ann' in request.form and current_role in ['管理员', '大管理员']:
         ann_content = request.form.get('ann_content')
         if ann_content:
@@ -691,6 +696,7 @@ def profile(uid):
                 <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
                 <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
                 <a href="/lt" title="私信" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+                <a href="/diary" title="日记" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
             </div>
             
             <div class="main-content">
@@ -720,10 +726,8 @@ def profile(uid):
             </div>
             
             <div class="right-sidebar">
-                <!-- 公告放在最上面 -->
                 {ann_html}
                 
-                <!-- 所有管理员都能看到发布公告入口 -->
                 {f'''
                 <div style="background:#fff; border-radius:8px; border:1px solid #eee; padding:15px; margin-bottom:20px;">
                     <h3 style="margin-top:0; font-size:15px; color:#333;">📢 发布新公告</h3>
@@ -735,11 +739,11 @@ def profile(uid):
                 </div>
                 ''' if current_role in ['管理员', '大管理员'] and is_owner else ''}
                 
-                <!-- 按钮移到右栏 -->
                 <div style="background:#fff; border-radius:8px; border:1px solid #eee; padding:15px; margin-bottom:20px; display:flex; flex-direction:column; gap:10px;">
                     {settings_btn}
                     {admin_console_btn}
                     {chat_btn}
+                    {f'<a href="/diary" style="display:block; text-align:center; padding:8px 12px; background:#f0ad4e; color:white; text-decoration:none; border-radius:4px; font-size:13px;">📔 我的日记</a>' if is_owner else ''}
                 </div>
 
                 <div class="info-card">
@@ -769,7 +773,156 @@ def del_msg(msg_id):
     conn.close()
     return redirect(url_for('profile', uid=user_id))
 
-# ================= 6. 独立反馈页面 =================
+# ================= 6. 日记功能 =================
+@app.route('/diary')
+def diary_list():
+    user_id = session.get('user_id')
+    if not user_id: return redirect(url_for('index'))
+    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("SELECT id, title, create_time FROM diaries WHERE user_id=? ORDER BY id DESC", (user_id,))
+    diaries = c.fetchall()
+    conn.close()
+    
+    diary_html = ""
+    for d in diaries:
+        diary_html += f"""
+        <a href="/diary/{d[0]}" style="display:block; text-decoration:none; color:#333; background:#fff; padding:15px 20px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
+            <div style="font-size:16px; font-weight:bold; color:#2c7be5; margin-bottom:5px;">{d[1]}</div>
+            <div style="font-size:12px; color:#999;">📅 {d[2]}</div>
+        </a>
+        """
+    if not diary_html:
+        diary_html = "<p style='text-align:center; color:#999; padding:30px;'>还没有写过日记，快去记录第一篇吧！</p>"
+
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>我的日记</title>
+        <style>
+            body {{ margin:0; background:#f5f5f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
+            
+            /* 去掉了侧边栏，主内容直接居中 */
+            .main-content {{ max-width: 800px; margin: 20px auto; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
+            .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }}
+            .header h2 {{ margin:0; color:#333; font-size:18px; }}
+        </style>
+    </head>
+    <body>
+        <!-- 顶部返回箭头 -->
+        <div class="top-nav">
+            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
+            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
+        </div>
+
+        <!-- 右侧日记列表 -->
+        <div class="main-content">
+            <div class="header">
+                <h2>📔 我的日记</h2>
+                <a href="/diary/new" style="text-decoration:none; padding:8px 15px; background:#5cb85c; color:white; border-radius:4px; font-size:14px;">写日记</a>
+            </div>
+            <div>{diary_html}</div>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route('/diary/new', methods=['GET', 'POST'])
+def diary_new():
+    user_id = session.get('user_id')
+    if not user_id: return redirect(url_for('index'))
+    
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        if title and content:
+            now_str = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            conn = sqlite3.connect('database.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO diaries (user_id, title, content, create_time) VALUES (?, ?, ?, ?)", (user_id, title, content, now_str))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('diary_list'))
+            
+    return """
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>写日记</title>
+    <style>body { margin:0; background:#f5f5f5; font-family:sans-serif; } .container { max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:20px; } input[type="text"] { width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; font-size:16px; } textarea { width:100%; height:200px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:15px; font-size:14px; } button { padding:10px 20px; background:#2c7be5; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; }</style>
+    </head><body>
+        <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/diary" style="color:#666; text-decoration:none; margin-right:15px;">返回列表</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>
+        <div class="container">
+            <h2 style="margin-top:0; color:#333;">✍️ 写日记</h2>
+            <form method="POST">
+                <input type="text" name="title" placeholder="给今天起个标题..." required>
+                <textarea name="content" placeholder="今天发生了什么？..." required></textarea>
+                <button type="submit">保存日记</button>
+            </form>
+        </div>
+    </body></html>
+    """
+
+@app.route('/diary/<int:diary_id>')
+def diary_detail(diary_id):
+    user_id = session.get('user_id')
+    if not user_id: return redirect(url_for('index'))
+    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("SELECT id, title, content, create_time FROM diaries WHERE id=? AND user_id=?", (diary_id, user_id))
+    diary = c.fetchone()
+    conn.close()
+    
+    if not diary:
+        return "日记不存在或无权查看！<a href='/diary'>返回</a>"
+        
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>{diary[1]}</title>
+        <style>
+            body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
+            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
+            .container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.02); }}
+            h1 {{ color:#333; margin-top:0; border-bottom:2px solid #eee; padding-bottom:15px; }}
+            .meta {{ color:#999; font-size:13px; margin-bottom:20px; }}
+            .content {{ line-height:1.8; color:#333; white-space:pre-wrap; }}
+            .btn-del {{ display:inline-block; margin-top:30px; padding:8px 15px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:14px; }}
+        </style>
+    </head>
+    <body>
+        <!-- 顶部返回箭头 -->
+        <div class="top-nav">
+            <div><a href="/diary" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回日记列表</a></div>
+            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
+        </div>
+        <div class="container">
+            <h1>{diary[1]}</h1>
+            <div class="meta">📅 {diary[3]}</div>
+            <div class="content">{diary[2]}</div>
+            <a href="/diary/delete/{diary[0]}" class="btn-del" onclick="return confirm('确定要撕掉这一页吗？不可恢复哦！')">删除这篇日记</a>
+        </div>
+    </body>
+    </html>
+    """
+
+@app.route('/diary/delete/<int:diary_id>')
+def diary_delete(diary_id):
+    user_id = session.get('user_id')
+    if not user_id: return redirect(url_for('index'))
+    
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM diaries WHERE id=? AND user_id=?", (diary_id, user_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('diary_list'))
+
+# ================= 7. 独立反馈页面 =================
 @app.route('/feedback', methods=['GET', 'POST'])
 def feedback_page():
     if not session.get('username'): return redirect(url_for('index'))
@@ -798,7 +951,7 @@ def feedback_page():
     </div>
     """
 
-# ================= 7. 登录与注册 =================
+# ================= 8. 登录与注册 =================
 @app.route('/dl', methods=['GET', 'POST'])
 def dl():
     if request.method == 'POST':
@@ -1034,7 +1187,7 @@ def yz():
     <body><h2>🔒 二次验证</h2><form id="yzForm" onsubmit="event.preventDefault();"><input type="text" name="code" placeholder="{binary_hour}" required><br><button type="button" onclick="submitVerify()" style="padding:10px 30px; background:#007bff; color:white; border:none; border-radius:4px; cursor:pointer;">验证</button></form><div id="modalOverlay" class="modal-overlay"><div class="modal-box"><h3>提示</h3><p id="modalText"></p><button onclick="closeModal()">返回</button></div></div></body></html>
     """
 
-# ================= 8. 大管理控制台 =================
+# ================= 9. 大管理控制台 =================
 @app.route('/admin', methods=['GET', 'POST'])
 def admin_console():
     if session.get('role') != '大管理员': return "无权访问！<a href='/'>返回首页</a>", 403
@@ -1053,6 +1206,7 @@ def admin_console():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     
+    # 接收发布公告 (在验证通过后的页面里)
     if request.method == 'POST' and 'publish_ann' in request.form:
         ann_content = request.form.get('ann_content')
         if ann_content:
@@ -1061,12 +1215,29 @@ def admin_console():
             conn.commit()
             return redirect(url_for('admin_console'))
 
+    # 处理大管理任命
+    if request.method == 'POST' and 'appoint_uid' in request.form:
+        target_uid = request.form.get('appoint_uid')
+        c.execute("SELECT COUNT(*) FROM users WHERE role='管理员'")
+        current_admin_count = c.fetchone()[0]
+        if current_admin_count >= 20:
+            conn.close()
+            return "<script>alert('管理员名额已满（20人），无法任命！'); window.location.href='/admin';</script>"
+        
+        c.execute("UPDATE users SET role='管理员', is_applying=0 WHERE user_id=?", (target_uid,))
+        conn.commit()
+        conn.close()
+        return "<script>alert('任命成功！该用户已晋升为管理员。'); window.location.href='/admin';</script>"
+
     c.execute("SELECT COUNT(*) FROM users WHERE role='管理员'")
     current_admin_count = c.fetchone()[0]
     c.execute("SELECT DISTINCT user_id, username, nickname FROM users WHERE is_applying=1 ORDER BY user_id ASC")
     applicants = c.fetchall()
     c.execute("SELECT id, user_id, content, create_time FROM feedbacks ORDER BY id DESC")
     feedbacks = c.fetchall()
+    # 查询可任命的普通用户
+    c.execute("SELECT user_id, nickname, username FROM users WHERE role='普通用户' LIMIT 20")
+    normal_users = c.fetchall()
     conn.close()
     
     app_html = ""
@@ -1085,7 +1256,12 @@ def admin_console():
         fb_html += f"""<details style="background:#f9f9f9; border:1px solid #eee; border-radius:6px; padding:10px; margin-bottom:10px;"><summary style="cursor:pointer; color:#333; font-size:14px; font-weight:bold;">【{f_time}】用户 {f_uid} 的反馈 <span style="color:#888; font-weight:normal; font-size:12px;">(点击查看)</span></summary><div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; color:#555; font-size:14px; word-break: break-all;">{f_content}</div></details>"""
     if not fb_html: fb_html = "<p style='color:#888;'>暂无反馈。</p>"
     
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>管理控制台</title><style>body {{ background-color: #f5f6f7; font-family: sans-serif; padding: 40px; margin: 0; }}.box {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}h2 {{ margin-top: 0; color: #333; border-bottom: 2px solid #d9534f; padding-bottom: 10px; display: inline-block; }}</style></head><body><div class="box"><h2>👑 管理控制台</h2><div style="margin-bottom: 20px; font-size: 15px;">当前管理员人数：<b style="color:{'red' if current_admin_count >= 20 else 'green'};">{current_admin_count} / 20</b><a href="/logout" style="float:right; color:#d9534f; text-decoration:none; font-size:14px;">退出登录</a></div>{quota_warning}<h3>📝 管理员申请列表</h3>{app_html}<hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📢 发布站内公告</h3><form method="POST" style="margin-top:15px;"><input type="hidden" name="publish_ann" value="1"><textarea name="ann_content" placeholder="输入公告内容..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:10px;"></textarea><button type="submit" style="padding:8px 20px; background:#f0ad4e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">发布公告</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📬 用户反馈收件箱 (管理员 lzm1024 收)</h3><div style="margin-top: 15px;">{fb_html}</div><br><br><a href="/user/0" style="color:#666; text-decoration:none;">← 返回个人中心</a></div></body></html>"""
+    # 生成任命下拉框的 HTML
+    appoint_options = "".join([f"<option value='{u[0]}'>{u[1] if u[1] else u[2]} (ID: {u[0]})</option>" for u in normal_users])
+    if not appoint_options:
+        appoint_options = "<option value=''>当前没有可任命的普通用户</option>"
+        
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>管理控制台</title><style>body {{ background-color: #f5f6f7; font-family: sans-serif; padding: 40px; margin: 0; }}.box {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}h2 {{ margin-top: 0; color: #333; border-bottom: 2px solid #d9534f; padding-bottom: 10px; display: inline-block; }}</style></head><body><div class="box"><h2>👑 管理控制台</h2><div style="margin-bottom: 20px; font-size: 15px;">当前管理员人数：<b style="color:{'red' if current_admin_count >= 20 else 'green'};">{current_admin_count} / 20</b><a href="/logout" style="float:right; color:#d9534f; text-decoration:none; font-size:14px;">退出登录</a></div>{quota_warning}<h3>📝 管理员申请列表</h3>{app_html}<hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>👑 直接任命新管理员</h3><form method="POST" style="display:flex; gap:10px; align-items:center; margin-top: 15px;"><select name="appoint_uid" required style="padding:10px; border-radius:4px; border:1px solid #ccc; flex:1;">{appoint_options}</select><button type="submit" style="padding:10px 20px; background:#d9534f; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">直接任命</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📢 发布站内公告</h3><form method="POST" style="margin-top:15px;"><input type="hidden" name="publish_ann" value="1"><textarea name="ann_content" placeholder="输入公告内容..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:10px;"></textarea><button type="submit" style="padding:8px 20px; background:#f0ad4e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">发布公告</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📬 用户反馈收件箱 (管理员 lzm1024 收)</h3><div style="margin-top: 15px;">{fb_html}</div><br><br><a href="/user/0" style="color:#666; text-decoration:none;">← 返回个人中心</a></div></body></html>"""
 
 @app.route('/approve_admin/<uid>', methods=['POST'])
 def approve_admin(uid):
