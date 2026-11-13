@@ -1147,7 +1147,7 @@ def admin_console():
             session['key_verified'] = True
             return redirect(url_for('admin_console'))
             
-        return """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>安全验证</title><style>body { text-align: center; margin-top: 100px; font-family: sans-serif; background-color: #f5f6f7; }.box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; }input[type="file"] { margin: 20px 0; }button { padding: 10px 30px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }</style></head><body><div class="box"><h2>🛡️ 高危操作安全验证</h2><p style="color:#666;">每次进入控制台均需验证物理密钥</p><form method="POST" enctype="multipart/form-data"><input type="file" name="key_file" accept=".key,.txt" required><br><button type="submit">验证密钥并进入</button></form><br><br><a href="/user/0" style="color:#666; text-decoration:none; font-size:14px;">放弃并返回</a></div></body></html>"""
+        return """<!DOCTYPE html><html><head><meta charset="UTF-8"><title>安全验证</title><style>body { text-align: center; margin-top: 100px; font-family: sans-serif; background-color: #f5f6f7; }.box { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: inline-block; }input[type="file"] { margin: 20px 0; }button { padding: 10px 30px; background: #d9534f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; }</style></head><body><div class="box"><h2>🛡️ 高危操作安全验证</h2><p style="color:#666;">每次进入控制台均需验证物理密钥</p><form method="POST" enctype="multipart/form-data"><input type="file" name="key_file" accept=".key,.txt" required><br><button type="submit">验证密钥并进入</button></form><br><br><a href="/" style="color:#666; text-decoration:none; font-size:14px;">放弃并返回</a></div></body></html>"""
 
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -1181,6 +1181,14 @@ def admin_console():
     feedbacks = c.fetchall()
     c.execute("SELECT user_id, nickname, username FROM users WHERE role='普通用户' LIMIT 20")
     normal_users = c.fetchall()
+    
+    # 新增：查询所有用户（用于重设密码）
+    c.execute("SELECT user_id, nickname, username FROM users WHERE role != '大管理员'")
+    all_users = c.fetchall()
+    # 新增：查询最新 20 条留言（用于删除）
+    c.execute("SELECT id, user_id, username, message FROM visitors ORDER BY id DESC LIMIT 20")
+    all_messages = c.fetchall()
+    
     conn.close()
     
     app_html = ""
@@ -1189,10 +1197,12 @@ def admin_console():
         nick = nickname if nickname else uname
         app_html += f"""<div style="display:flex; justify-content:space-between; align-items:center; background:#f9f9f9; padding:15px; margin-bottom:10px; border-radius:6px; border:1px solid #eee;"><div><b style="color:#333;">{nick}</b> <span style="color:#888; font-size:13px;">(ID: {uid} / 账号: {uname})</span></div><form method="POST" action="/approve_admin/{uid}" style="margin:0;"><button type="submit" style="padding:6px 15px; background:#5cb85c; color:white; border:none; border-radius:4px; cursor:pointer;">同意申请</button></form></div>"""
     if not app_html: app_html = "<p style='color:#888;'>当前没有待审批的申请。</p>"
+    
     quota_warning = ""
     if current_admin_count >= 20:
         quota_warning = "<p style='color:red; font-weight:bold;'>⚠️ 管理员名额已满（20/20），无法继续批准。</p>"
         app_html = "<p style='color:#888;'>名额已满，暂不处理。</p>"
+        
     fb_html = ""
     for fb in feedbacks:
         f_id, f_uid, f_content, f_time = fb
@@ -1202,8 +1212,57 @@ def admin_console():
     appoint_options = "".join([f"<option value='{u[0]}'>{u[1] if u[1] else u[2]} (ID: {u[0]})</option>" for u in normal_users])
     if not appoint_options:
         appoint_options = "<option value=''>当前没有可任命的普通用户</option>"
+
+    # 生成重设密码表单 HTML
+    reset_pwd_html = ""
+    for u in all_users:
+        reset_pwd_html += f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-bottom:1px solid #eee; font-size:13px;">
+            <span><b>{u[1] if u[1] else u[2]}</b> (账号: {u[2]})</span>
+            <form method="POST" action="/admin/reset_pwd/{u[0]}" style="margin:0; display:flex; gap:5px;">
+                <input type="text" name="new_pwd" placeholder="输入新密码" required style="padding:4px; border:1px solid #ccc; border-radius:4px; width:100px;">
+                <button type="submit" style="padding:4px 10px; background:#2c7be5; color:white; border:none; border-radius:4px; cursor:pointer;">重设</button>
+            </form>
+        </div>
+        """
+
+    # 生成删除留言表单 HTML
+    del_msg_html = ""
+    for msg in all_messages:
+        m_id, m_uid, m_uname, m_text = msg
+        del_msg_html += f"""
+        <div style="display:flex; justify-content:space-between; align-items:center; background:#fff; padding:8px 12px; border-bottom:1px solid #eee; font-size:13px;">
+            <span><b>【{m_uid}】{m_uname}</b>：{m_text}</span>
+            <a href="/admin/del_msg/{m_id}" onclick="return confirm('确定要删除这条留言吗？')" style="color:#d9534f; text-decoration:none; margin-left:10px;">删除</a>
+        </div>
+        """
         
-    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>管理控制台</title><style>body {{ background-color: #f5f6f7; font-family: sans-serif; padding: 40px; margin: 0; }}.box {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}h2 {{ margin-top: 0; color: #333; border-bottom: 2px solid #d9534f; padding-bottom: 10px; display: inline-block; }}</style></head><body><div class="box"><h2>👑 管理控制台</h2><div style="margin-bottom: 20px; font-size: 15px;">当前管理员人数：<b style="color:{'red' if current_admin_count >= 20 else 'green'};">{current_admin_count} / 20</b><a href="/logout" style="float:right; color:#d9534f; text-decoration:none; font-size:14px;">退出登录</a></div>{quota_warning}<h3>📝 管理员申请列表</h3>{app_html}<hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>👑 直接任命新管理员</h3><form method="POST" style="display:flex; gap:10px; align-items:center; margin-top: 15px;"><select name="appoint_uid" required style="padding:10px; border-radius:4px; border:1px solid #ccc; flex:1;">{appoint_options}</select><button type="submit" style="padding:10px 20px; background:#d9534f; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">直接任命</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📢 发布站内公告</h3><form method="POST" style="margin-top:15px;"><input type="hidden" name="publish_ann" value="1"><textarea name="ann_content" placeholder="输入公告内容..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:10px;"></textarea><button type="submit" style="padding:8px 20px; background:#f0ad4e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">发布公告</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📬 用户反馈收件箱 (管理员 lzm1024 收)</h3><div style="margin-top: 15px;">{fb_html}</div><br><br><a href="/" style="color:#666; text-decoration:none;">← 返回首页</a></div></body></html>"""
+    return f"""<!DOCTYPE html><html><head><meta charset="UTF-8"><title>管理控制台</title><style>body {{ background-color: #f5f6f7; font-family: sans-serif; padding: 40px; margin: 0; }}.box {{ max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }}h2 {{ margin-top: 0; color: #333; border-bottom: 2px solid #d9534f; padding-bottom: 10px; display: inline-block; }}</style></head><body><div class="box"><h2>👑 管理控制台</h2><div style="margin-bottom: 20px; font-size: 15px;">当前管理员人数：<b style="color:{'red' if current_admin_count >= 20 else 'green'};">{current_admin_count} / 20</b><a href="/logout" style="float:right; color:#d9534f; text-decoration:none; font-size:14px;">退出登录</a></div>{quota_warning}<h3>📝 管理员申请列表</h3>{app_html}<hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>👑 直接任命新管理员</h3><form method="POST" style="display:flex; gap:10px; align-items:center; margin-top: 15px;"><select name="appoint_uid" required style="padding:10px; border-radius:4px; border:1px solid #ccc; flex:1;">{appoint_options}</select><button type="submit" style="padding:10px 20px; background:#d9534f; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">直接任命</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>🔑 重设用户密码</h3><div style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; margin-top: 10px;">{reset_pwd_html}</div><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>🗑️ 删除他人留言 (最新20条)</h3><div style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; margin-top: 10px;">{del_msg_html}</div><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📢 发布站内公告</h3><form method="POST" style="margin-top:15px;"><input type="hidden" name="publish_ann" value="1"><textarea name="ann_content" placeholder="输入公告内容..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:10px;"></textarea><button type="submit" style="padding:8px 20px; background:#f0ad4e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">发布公告</button></form><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><h3>📬 用户反馈收件箱 (管理员 lzm1024 收)</h3><div style="margin-top: 15px;">{fb_html}</div><br><br><a href="/" style="color:#666; text-decoration:none;">← 返回首页</a></div></body></html>"""
+
+# 新增：重设密码路由
+@app.route('/admin/reset_pwd/<uid>', methods=['POST'])
+def admin_reset_pwd(uid):
+    if session.get('role') != '大管理员': return "无权操作", 403
+    new_pwd = request.form.get('new_pwd')
+    if new_pwd:
+        conn = sqlite3.connect('database.db')
+        c = conn.cursor()
+        c.execute("UPDATE users SET password=? WHERE user_id=?", (new_pwd, uid))
+        conn.commit()
+        conn.close()
+        return "<script>alert('密码重设成功！'); window.location.href='/admin';</script>"
+    return "<script>alert('密码不能为空！'); window.location.href='/admin';</script>"
+
+# 新增：大管理删除留言路由
+@app.route('/admin/del_msg/<int:msg_id>')
+def admin_del_msg(msg_id):
+    if session.get('role') != '大管理员': return "无权操作", 403
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM visitors WHERE id=?", (msg_id,))
+    conn.commit()
+    conn.close()
+    return "<script>alert('留言已删除！'); window.location.href='/admin';</script>"
 
 @app.route('/approve_admin/<uid>', methods=['POST'])
 def approve_admin(uid):
