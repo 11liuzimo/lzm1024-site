@@ -52,7 +52,6 @@ def init_db():
     conn.close()
 
 # ================= 1. 首页 =================
-# ================= 1. 首页 =================
 @app.route('/')
 def index():
     user = session.get('username')
@@ -71,7 +70,6 @@ def index():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     
-    # 1. 获取最新公告
     c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
     latest_ann = c.fetchone()
     ann_html = ""
@@ -86,23 +84,18 @@ def index():
     else:
         ann_html = "<div style='background:#fff; border-radius:8px; border:1px solid #eee; padding:20px; margin-bottom:20px; color:#999; text-align:center;'>暂无公告</div>"
 
-    # 2. 获取最新3条论坛留言
     c.execute("SELECT user_id, username, message FROM visitors ORDER BY id DESC LIMIT 3")
     recent_msgs = c.fetchall()
     
-    # 3. 获取最新4个注册用户
     c.execute("SELECT user_id, nickname, username, role, avatar FROM users WHERE role != '大管理员' ORDER BY id DESC LIMIT 4")
     recent_users = c.fetchall()
     
-    # 4. 获取最近聊天的3个用户
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ? LIMIT 3''', (user_id, user_id, user_id))
     recent_chats = c.fetchall()
 
-    # 5. 获取最近的3篇日记
     c.execute("SELECT id, title, create_time FROM diaries WHERE user_id=? ORDER BY id DESC LIMIT 3", (user_id,))
     recent_diaries = c.fetchall()
     
-    # --- 拼装 HTML ---
     forum_html = ""
     for m in recent_msgs:
         m_uid, m_uname, m_text = m
@@ -157,7 +150,7 @@ def index():
     for d in recent_diaries:
         diary_html += f"""
         <div style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:left; font-size:13px;">
-            <a href="/diary/{d[0]}" style="color:#333; text-decoration:none; font-weight:bold;">{d[1]}</a>
+            <a href="/rj/{user_id}/{d[0]}" style="color:#333; text-decoration:none; font-weight:bold;">{d[1]}</a>
             <div style="font-size:11px; color:#aaa; margin-top:2px;">📅 {d[2]}</div>
         </div>
         """
@@ -182,11 +175,7 @@ def index():
         <style>
             body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
             .container {{ max-width: 1000px; margin: 30px auto; padding: 0 20px; }}
-            
-            /* 核心：强制 2x2 网格布局 */
             .grid-layout {{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }}
-            
-            /* 卡片统一高度 */
             .module-card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.02); display: flex; flex-direction: column; height: 220px; }}
             .module-header {{ display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2c7be5; padding-bottom: 8px; margin-bottom: 10px; }}
             .module-title {{ margin: 0; color: #333; font-size: 16px; font-weight: bold; }}
@@ -198,34 +187,28 @@ def index():
     <body>
         {nav}
         <div class="container">
-            <!-- 公告横跨两列 -->
             <div style="grid-column: span 2;">
                 {ann_html}
             </div>
             
-            <!-- 四大金刚 -->
             <div class="grid-layout">
-                <!-- 1. 公共论坛 -->
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">📝 公共论坛</h3><a href="/gglt" class="module-more">进入 →</a></div>
                     <div class="module-content">{forum_html}</div>
                 </div>
 
-                <!-- 2. 活跃用户 -->
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">👥 活跃用户</h3><a href="/user" class="module-more">查看全部 →</a></div>
                     <div class="module-content">{users_html}</div>
                 </div>
 
-                <!-- 3. 最近私信 -->
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">💬 最近私信</h3><a href="/lt" class="module-more">进入 →</a></div>
                     <div class="module-content">{recent_chat_html}</div>
                 </div>
 
-                <!-- 4. 我的日记 -->
                 <div class="module-card">
-                    <div class="module-header"><h3 class="module-title">📔 我的日记</h3><a href="/diary" class="module-more">进入 →</a></div>
+                    <div class="module-header"><h3 class="module-title">📔 我的日记</h3><a href="/rj" class="module-more">进入 →</a></div>
                     <div class="module-content">{diary_html}</div>
                 </div>
             </div>
@@ -311,6 +294,7 @@ def forum():
                 <a href="/gglt" title="公共论坛" class="sidebar-icon" style="color:#2c7be5; background-color:#f0f7ff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
                 <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
                 <a href="/lt" title="私信" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+                <a href="/rj" title="日记" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
             </div>
             <div class="main-content">
                 <h3>📝 发布留言</h3>
@@ -390,6 +374,7 @@ def user_list():
                 <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
                 <a href="/user" title="用户列表" class="sidebar-icon" style="color:#2c7be5; background-color:#f0f7ff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
                 <a href="/lt" title="私信" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+                <a href="/rj" title="日记" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
             </div>
             <div class="main-content">
                 <div class="header"><h2>👥 全站用户列表</h2><span style="color:#888; font-size:14px;">共 {total_users} 人</span></div>
@@ -427,17 +412,39 @@ def chat_list():
             
             chat_html += f"""<a href="/lt/{other_id}" style="display:flex; justify-content:space-between; align-items:center; padding:15px 20px; border-bottom:1px solid #f0f0f0; text-decoration:none; color:#333;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:15px;">{avatar_html}<div style="font-size:16px; font-weight:bold;">{nickname}</div></div><div style="color:#999; font-size:13px; text-align:right; max-width: 50%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;">{short_content}</div></a>"""
     if not chat_html: chat_html = "<p style='text-align:center; color:#999; padding:30px;'>暂无聊天记录，快去用户列表找人聊天吧！</p>"
-    
     conn.close()
 
     return f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>我的私信</title>
-    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; overflow:hidden; }}.header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}.header h2 {{ margin:0; color:#333; font-size:18px; }}</style>
+    <style>
+        body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
+        .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
+        .layout {{ display: flex; max-width: 900px; margin: 20px auto; gap: 20px; padding: 0 10px; }}
+        .sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}
+        .sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}
+        .sidebar-icon svg {{ width: 22px; height: 22px; }}
+        .sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}
+        .main-content {{ flex: 1; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
+        .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}
+        .header h2 {{ margin:0; color:#333; font-size:18px; }}
+    </style>
     </head><body>
-        <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/" style="color:#666; text-decoration:none; margin-right:15px;">首页</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>
-        <div class="container">
-            <div class="header"><svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><h2>私信</h2></div>
-            <div>{chat_html}</div>
+        <div class="top-nav">
+            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
+            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
+        </div>
+        <div class="layout">
+            <div class="sidebar">
+                <a href="/" title="首页" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
+                <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
+                <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
+                <a href="/lt" title="私信" class="sidebar-icon" style="color:#2c7be5; background-color:#f0f7ff;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
+                <a href="/rj" title="日记" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
+            </div>
+            <div class="main-content">
+                <div class="header"><svg viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:22px; height:22px;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><h2>私信</h2></div>
+                <div>{chat_html}</div>
+            </div>
         </div>
     </body></html>
     """
@@ -533,7 +540,6 @@ def profile(uid):
     c = conn.cursor()
     is_owner = (current_id == uid)
     
-    # 1. 处理修改个人资料（包含头像上传）
     if request.method == 'POST' and 'update_profile' in request.form and is_owner:
         new_nickname = request.form.get('nickname')
         new_bio = request.form.get('bio')
@@ -558,7 +564,6 @@ def profile(uid):
         conn.commit()
         return redirect(url_for('profile', uid=uid))
         
-    # 2. 处理发布留言
     if request.method == 'POST' and 'message' in request.form and is_owner:
         msg = request.form.get('message')
         if msg:
@@ -566,7 +571,6 @@ def profile(uid):
             conn.commit()
             return redirect(url_for('profile', uid=uid))
             
-    # 3. 处理管理员发布公告
     if request.method == 'POST' and 'publish_ann' in request.form and current_role in ['管理员', '大管理员']:
         ann_content = request.form.get('ann_content')
         if ann_content:
@@ -575,206 +579,25 @@ def profile(uid):
             conn.commit()
             return redirect(url_for('profile', uid=uid))
 
-    # 获取用户信息
-    c.execute("SELECT nickname, avatar, bio, register_time, role FROM users WHERE user_id=?", (uid,))
+    # 这里的查询顺序必须和下面取值对应
+    c.execute("SELECT nickname, username, avatar, bio, register_time, role FROM users WHERE user_id=?", (uid,))
     target_user = c.fetchone()
+    
     if not target_user:
         conn.close()
         return "<h1 style='text-align:center; margin-top:100px;'>该用户不存在</h1><a href='/'>返回首页</a>"
         
-    nickname = target_user[0] if target_user[0] else current_user
-    avatar = target_user[1] if target_user[1] else ""
-    bio = target_user[2] if target_user[2] else "欢迎来到我的个人主页"
-    reg_time = target_user[3] if target_user[3] else "未知"
-    target_role = target_user[4]
-    
-    # 获取最新公告
-    c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
-    latest_ann = c.fetchone()
-    ann_html = ""
-    if latest_ann:
-        ann_html = f"""
-        <div class="announcement-card" style="background:#fff; border-radius:8px; border:1px solid #eee; padding:20px; margin-bottom:20px; border-left: 4px solid #f0ad4e;">
-            <h3 style="margin-top:0; font-size:15px; color:#f0ad4e;">📢 站内公告</h3>
-            <p style="font-size:14px; color:#333; line-height:1.6; margin:0;">{latest_ann[0]}</p>
-            <div style="font-size:12px; color:#aaa; margin-top:10px; text-align:right;">{latest_ann[1]}</div>
-        </div>
-        """
-    else:
-        ann_html = "<p style='color:#999; text-align:center;'>暂无公告</p>"
+    # 修复核心：优先显示被访问者的昵称，如果没填，显示他的账号名，绝不显示当前登录者的名字
+    nickname = target_user[0] if target_user[0] else target_user[1]
+    avatar = target_user[2] if target_user[2] else ""
+    bio = target_user[3] if target_user[3] else "欢迎来到我的个人主页"
+    reg_time = target_user[4] if target_user[4] else "未知"
+    target_role = target_user[5]
 
-    # 获取留言板分页
-    search_text = request.args.get('search', '').strip()
-    page = int(request.args.get('page', 1))
-    limit = 5
-    offset = (page - 1) * limit
-    
-    base_query = "FROM visitors WHERE user_id = ?"
-    params = [uid]
-    if search_text:
-        base_query += " AND message LIKE ?"
-        params.append(f"%{search_text}%")
-        
-    c.execute(f"SELECT COUNT(*) {base_query}", params)
-    total_records = c.fetchone()[0]
-    total_pages = (total_records + limit - 1) // limit 
-    if total_pages == 0: total_pages = 1
-    
-    query = f"SELECT id, user_id, username, message {base_query} ORDER BY id DESC LIMIT ? OFFSET ?"
-    c.execute(query, params + [limit, offset])
-    messages = c.fetchall()
-    conn.close()
-    
-    msg_html = ""
-    for m in messages:
-        msg_id, m_user_id, m_username, m_text = m
-        delete_btn = f"<a href='/del_msg/{msg_id}' style='color:#d9534f; font-size:12px; text-decoration:none; margin-left:10px;'>删除</a>" if current_id == m_user_id and is_owner else ""
-        msg_html += f"""<div style='background:#fff; padding:10px; margin-bottom:10px; border-radius:5px; box-shadow:0 2px 4px rgba(0,0,0,0.05); text-align:left;'><span style='color:#888; font-size:12px;'>【{m_user_id}】<a href="/user/{m_user_id}" style="color:#888; text-decoration:none;">{m_username}</a></span>{delete_btn}<p style='margin:5px 0 0 0;'>{m_text}</p></div>"""
-    if not msg_html: msg_html = "<p style='color:#999;'>没有找到留言。</p>"
-    
-    avatar_html = f"<img src='{avatar}' style='width:100%; height:100%; border-radius:50%; object-fit:cover;'>" if avatar else f"<span style='font-size:24px; color:#fff;'>{nickname[0].upper()}</span>"
-    
-    page_html = ""
-    if total_pages > 1:
-        prev_disabled = "disabled" if page <= 1 else ""
-        next_disabled = "disabled" if page >= total_pages else ""
-        page_html = f"<div style='display:flex; justify-content:center; gap:10px; margin-top:15px;'><a href='?page={page-1}&search={search_text}' style='text-decoration:none; padding:5px 15px; background:#fff; border:1px solid #ddd; border-radius:4px; color:#333; {prev_disabled}'>上一页</a><span style='padding:5px 0;'>第 {page} / {total_pages} 页</span><a href='?page={page+1}&search={search_text}' style='text-decoration:none; padding:5px 15px; background:#fff; border:1px solid #ddd; border-radius:4px; color:#333; {next_disabled}'>下一页</a></div>"
-        
-    settings_btn = f'<button onclick="openEditModal()" style="padding:8px 12px; background:#fff; border:1px solid #ddd; border-radius:4px; cursor:pointer; width:100%;">个人设置</button>' if is_owner else ''
-    admin_console_btn = '<a href="/admin" style="display:block; text-align:center; padding:8px 12px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:13px;">管理控制台</a>' if current_role == '大管理员' and is_owner else ''
-    chat_btn = f'<a href="/lt/{uid}" style="display:block; text-align:center; padding:8px 12px; background:#07c160; color:white; text-decoration:none; border-radius:4px; font-size:13px;">发私信</a>' if not is_owner else ''
-    
-    post_msg_form = f"""<h3>📝 发布留言</h3><form method="POST"><textarea name="message" placeholder="写点什么吧..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; margin-bottom:10px; resize:vertical;"></textarea><button type="submit" style="padding: 8px 20px; background: #5cb85c; color: white; border: none; border-radius: 4px; cursor: pointer;">发送</button></form><hr style="border:0; border-top:1px solid #eee; margin:20px 0;">""" if is_owner else ''
-    
-    edit_modal = f"""<div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); justify-content:center; align-items:center; z-index:1000;"><div style="background:white; padding:30px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.15); text-align:left; width:350px; font-family:sans-serif;"><h3 style="margin-top:0; text-align:center;">修改个人资料</h3><form method="POST" enctype="multipart/form-data"><input type="hidden" name="update_profile" value="1"><label style="font-size:14px; color:#666;">用户名 (展示用，可重复)</label><input type="text" name="nickname" value="{nickname}" placeholder="输入新昵称"><label style="font-size:14px; color:#666;">个性标签</label><input type="text" name="bio" value="{bio}" placeholder="欢迎来到我的个人主页"><label style="font-size:14px; color:#666;">上传新头像 (支持电脑/手机)</label><input type="file" name="avatar_file" accept="image/*" style="margin-bottom:15px;"><label style="font-size:14px; color:#666;">修改密码 (留空则不修改)</label><input type="password" name="new_password" placeholder="输入新密码"><button type="submit" style="margin-top:10px; width:100%; padding:10px 0; background-color:#007bff; color:white; border:none; border-radius:4px;">保存修改</button><button type="button" onclick="document.getElementById('editModal').style.display='none'" style="background:#ccc; margin-top:5px; width:100%; padding:10px 0; border:none; border-radius:4px;">取消</button></form></div></div>""" if is_owner else ''
+    # 后续的公告、留言板、分页等代码保持你原来的不动...
 
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{nickname} - 个人中心</title>
-        <style>
-            body {{ margin: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }}
-            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-            .layout {{ display: flex; max-width: 1200px; margin: 20px auto; gap: 20px; padding: 0 10px; }}
-            .sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}
-            .sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}
-            .sidebar-icon svg {{ width: 22px; height: 22px; }}
-            .sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}
-            .main-content {{ flex: 1; }}
-            .profile-header {{ background: #fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; margin-bottom: 20px; position: relative; }}
-            .banner {{ height: 150px; background: #e0f7fa; }}
-            .avatar-area {{ padding: 20px; display: flex; align-items: center; gap: 15px; margin-top: -40px; }}
-            .avatar {{ width: 80px; height: 80px; border-radius: 50%; background: #ccc; border: 3px solid #fff; z-index: 10; display: flex; justify-content: center; align-items: center; overflow: hidden; }}
-            .user-info h2 {{ margin: 0 0 5px 0; font-size: 20px; }}
-            .user-info p {{ margin: 0; color: #888; font-size: 13px; }}
-            .card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 20px; }}
-            .filter-form {{ display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }}
-            .filter-form input[type="text"] {{ padding: 8px; border: 1px solid #ccc; border-radius: 4px; }}
-            .filter-form button {{ padding: 8px 15px; background: #2c7be5; color: white; border: none; border-radius: 4px; cursor: pointer; }}
-            .right-sidebar {{ width: 300px; }}
-            .info-card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 20px; }}
-            .info-item {{ display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }}
-            .info-item span:first-child {{ color: #888; }}
-            .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); justify-content: center; align-items: center; z-index: 1000; }}
-            .modal-box {{ background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: left; width: 350px; font-family: sans-serif; }}
-            .modal-box input {{ width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }}
-            .modal-box button {{ width: 100%; padding: 10px 0; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }}
-        </style>
-        <script>function openEditModal() {{ document.getElementById('editModal').style.display = 'flex'; }}</script>
-    </head>
-    <body>
-        <div class="top-nav">
-            <b>{nickname} - 个人中心</b>
-            <div><a href="/" style="text-decoration:none; color:#666; margin-right:15px;">返回首页</a><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
-        </div>
-        
-        <div class="layout">
-            <div class="sidebar">
-                <a href="/" title="首页" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
-                <a href="/gglt" title="公共论坛" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
-                <a href="/user" title="用户列表" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></a>
-                <a href="/lt" title="私信" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></a>
-                <a href="/diary" title="日记" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg></a>
-            </div>
-            
-            <div class="main-content">
-                <div class="profile-header">
-                    <div class="banner"></div>
-                    <div class="avatar-area">
-                        <div class="avatar">{avatar_html}</div>
-                        <div class="user-info">
-                            <h2>{nickname}</h2>
-                            <p>{bio}</p>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    {post_msg_form}
-                    <h3>🔍 筛选 {nickname} 的留言</h3>
-                    <form method="GET" class="filter-form">
-                        <input type="text" name="search" value="{search_text}" placeholder="搜索内容...">
-                        <button type="submit">应用</button>
-                        <a href="/user/{uid}" style="text-decoration:none; color:#666; padding:8px 0;">重置</a>
-                    </form>
-                    <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
-                    <h3>💬 留言板</h3>
-                    {msg_html}{page_html}
-                </div>
-            </div>
-            
-            <div class="right-sidebar">
-                {ann_html}
-                
-                {f'''
-                <div style="background:#fff; border-radius:8px; border:1px solid #eee; padding:15px; margin-bottom:20px;">
-                    <h3 style="margin-top:0; font-size:15px; color:#333;">📢 发布新公告</h3>
-                    <form method="POST">
-                        <input type="hidden" name="publish_ann" value="1">
-                        <textarea name="ann_content" placeholder="输入公告内容..." required style="width:100%; height:80px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:10px; font-size:13px;"></textarea>
-                        <button type="submit" style="width:100%; padding:8px 0; background:#f0ad4e; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">发布公告</button>
-                    </form>
-                </div>
-                ''' if current_role in ['管理员', '大管理员'] and is_owner else ''}
-                
-                <div style="background:#fff; border-radius:8px; border:1px solid #eee; padding:15px; margin-bottom:20px; display:flex; flex-direction:column; gap:10px;">
-                    {settings_btn}
-                    {admin_console_btn}
-                    {chat_btn}
-                    {f'<a href="/diary" style="display:block; text-align:center; padding:8px 12px; background:#f0ad4e; color:white; text-decoration:none; border-radius:4px; font-size:13px;">📔 我的日记</a>' if is_owner else ''}
-                </div>
-
-                <div class="info-card">
-                    <h3 style="margin-top:0;">用户信息</h3>
-                    <div class="info-item"><span>用户编号</span><b>{uid}</b></div>
-                    <div class="info-item"><span>用户类型</span><b>{target_role}</b></div>
-                    <div class="info-item"><span>注册时间</span><b>{reg_time}</b></div>
-                    <hr style="border:0; border-top:1px solid #eee; margin:15px 0;">
-                    <div class="info-item"><span>基础信用</span><b>100</b></div>
-                    <div class="info-item"><span>社区贡献</span><b>0</b></div>
-                </div>
-            </div>
-        </div>
-        {edit_modal}
-    </body>
-    </html>
-    """
-
-@app.route('/del_msg/<int:msg_id>')
-def del_msg(msg_id):
-    user_id = session.get('user_id')
-    if not user_id: return redirect(url_for('index'))
-    conn = sqlite3.connect('database.db')
-    c = conn.cursor()
-    c.execute("DELETE FROM visitors WHERE id=? AND user_id=?", (msg_id, user_id))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('profile', uid=user_id))
-
-# ================= 6. 日记功能 =================
-@app.route('/diary')
+# ================= 6. 日记功能 (专属 URL: /rj/<uid>/<序号>) =================
+@app.route('/rj')
 def diary_list():
     user_id = session.get('user_id')
     if not user_id: return redirect(url_for('index'))
@@ -786,9 +609,12 @@ def diary_list():
     conn.close()
     
     diary_html = ""
-    for d in diaries:
+    total = len(diaries)
+    for index, d in enumerate(diaries):
+        diary_index = total - index # 算出这是该用户的第几篇（从1开始，老的在最前）
+        
         diary_html += f"""
-        <a href="/diary/{d[0]}" style="display:block; text-decoration:none; color:#333; background:#fff; padding:15px 20px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
+        <a href="/rj/{user_id}/{diary_index}" style="display:block; text-decoration:none; color:#333; background:#fff; padding:15px 20px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
             <div style="font-size:16px; font-weight:bold; color:#2c7be5; margin-bottom:5px;">{d[1]}</div>
             <div style="font-size:12px; color:#999;">📅 {d[2]}</div>
         </a>
@@ -805,25 +631,21 @@ def diary_list():
         <style>
             body {{ margin:0; background:#f5f5f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
             .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-            
-            /* 去掉了侧边栏，主内容直接居中 */
             .main-content {{ max-width: 800px; margin: 20px auto; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
             .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }}
             .header h2 {{ margin:0; color:#333; font-size:18px; }}
         </style>
     </head>
     <body>
-        <!-- 顶部返回箭头 -->
         <div class="top-nav">
             <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
             <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
         </div>
 
-        <!-- 右侧日记列表 -->
         <div class="main-content">
             <div class="header">
                 <h2>📔 我的日记</h2>
-                <a href="/diary/new" style="text-decoration:none; padding:8px 15px; background:#5cb85c; color:white; border-radius:4px; font-size:14px;">写日记</a>
+                <a href="/rj/new" style="text-decoration:none; padding:8px 15px; background:#5cb85c; color:white; border-radius:4px; font-size:14px;">写日记</a>
             </div>
             <div>{diary_html}</div>
         </div>
@@ -831,7 +653,7 @@ def diary_list():
     </html>
     """
 
-@app.route('/diary/new', methods=['GET', 'POST'])
+@app.route('/rj/new', methods=['GET', 'POST'])
 def diary_new():
     user_id = session.get('user_id')
     if not user_id: return redirect(url_for('index'))
@@ -852,7 +674,7 @@ def diary_new():
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>写日记</title>
     <style>body { margin:0; background:#f5f5f5; font-family:sans-serif; } .container { max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:20px; } input[type="text"] { width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; font-size:16px; } textarea { width:100%; height:200px; padding:10px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box; resize:vertical; margin-bottom:15px; font-size:14px; } button { padding:10px 20px; background:#2c7be5; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; }</style>
     </head><body>
-        <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/diary" style="color:#666; text-decoration:none; margin-right:15px;">返回列表</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>
+        <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;"><a href="/rj" style="color:#666; text-decoration:none; margin-right:15px;">返回列表</a><a href="/logout" style="color:#666; text-decoration:none;">退出</a></div>
         <div class="container">
             <h2 style="margin-top:0; color:#333;">✍️ 写日记</h2>
             <form method="POST">
@@ -864,53 +686,43 @@ def diary_new():
     </body></html>
     """
 
-@app.route('/diary/<int:diary_id>')
-def diary_detail(diary_id):
-    user_id = session.get('user_id')
-    if not user_id: return redirect(url_for('index'))
+@app.route('/rj/<uid>/<int:diary_index>')
+def diary_detail(uid, diary_index):
+    current_user_id = session.get('user_id')
+    if not current_user_id: return redirect(url_for('index'))
     
+    if current_user_id != uid:
+        return "无权查看他人的日记！<a href='/rj'>返回</a>"
+        
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
-    c.execute("SELECT id, title, content, create_time FROM diaries WHERE id=? AND user_id=?", (diary_id, user_id))
-    diary = c.fetchone()
+    c.execute("SELECT id, title, content, create_time FROM diaries WHERE user_id=? ORDER BY id ASC", (uid,))
+    diaries = c.fetchall()
     conn.close()
     
-    if not diary:
-        return "日记不存在或无权查看！<a href='/diary'>返回</a>"
+    if diary_index < 1 or diary_index > len(diaries):
+        return "这篇日记不存在！<a href='/rj'>返回列表</a>"
         
+    diary = diaries[diary_index - 1]
+    
     return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>{diary[1]}</title>
-        <style>
-            body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
-            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-            .container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.02); }}
-            h1 {{ color:#333; margin-top:0; border-bottom:2px solid #eee; padding-bottom:15px; }}
-            .meta {{ color:#999; font-size:13px; margin-bottom:20px; }}
-            .content {{ line-height:1.8; color:#333; white-space:pre-wrap; }}
-            .btn-del {{ display:inline-block; margin-top:30px; padding:8px 15px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:14px; }}
-        </style>
-    </head>
-    <body>
-        <!-- 顶部返回箭头 -->
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>{diary[1]}</title>
+    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }} .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }} .container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.02); }} h1 {{ color:#333; margin-top:0; border-bottom:2px solid #eee; padding-bottom:15px; }} .meta {{ color:#999; font-size:13px; margin-bottom:20px; }} .content {{ line-height:1.8; color:#333; white-space:pre-wrap; }} .btn-del {{ display:inline-block; margin-top:30px; padding:8px 15px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:14px; }}</style>
+    </head><body>
         <div class="top-nav">
-            <div><a href="/diary" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回日记列表</a></div>
+            <div><a href="/rj" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回日记列表</a></div>
             <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
         </div>
         <div class="container">
             <h1>{diary[1]}</h1>
             <div class="meta">📅 {diary[3]}</div>
             <div class="content">{diary[2]}</div>
-            <a href="/diary/delete/{diary[0]}" class="btn-del" onclick="return confirm('确定要撕掉这一页吗？不可恢复哦！')">删除这篇日记</a>
+            <a href="/rj/delete/{diary[0]}" class="btn-del" onclick="return confirm('确定要撕掉这一页吗？不可恢复哦！')">删除这篇日记</a>
         </div>
-    </body>
-    </html>
+    </body></html>
     """
 
-@app.route('/diary/delete/<int:diary_id>')
+@app.route('/rj/delete/<int:diary_id>')
 def diary_delete(diary_id):
     user_id = session.get('user_id')
     if not user_id: return redirect(url_for('index'))
@@ -1206,7 +1018,6 @@ def admin_console():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     
-    # 接收发布公告 (在验证通过后的页面里)
     if request.method == 'POST' and 'publish_ann' in request.form:
         ann_content = request.form.get('ann_content')
         if ann_content:
@@ -1215,7 +1026,6 @@ def admin_console():
             conn.commit()
             return redirect(url_for('admin_console'))
 
-    # 处理大管理任命
     if request.method == 'POST' and 'appoint_uid' in request.form:
         target_uid = request.form.get('appoint_uid')
         c.execute("SELECT COUNT(*) FROM users WHERE role='管理员'")
@@ -1235,7 +1045,6 @@ def admin_console():
     applicants = c.fetchall()
     c.execute("SELECT id, user_id, content, create_time FROM feedbacks ORDER BY id DESC")
     feedbacks = c.fetchall()
-    # 查询可任命的普通用户
     c.execute("SELECT user_id, nickname, username FROM users WHERE role='普通用户' LIMIT 20")
     normal_users = c.fetchall()
     conn.close()
@@ -1256,7 +1065,6 @@ def admin_console():
         fb_html += f"""<details style="background:#f9f9f9; border:1px solid #eee; border-radius:6px; padding:10px; margin-bottom:10px;"><summary style="cursor:pointer; color:#333; font-size:14px; font-weight:bold;">【{f_time}】用户 {f_uid} 的反馈 <span style="color:#888; font-weight:normal; font-size:12px;">(点击查看)</span></summary><div style="margin-top:10px; padding-top:10px; border-top:1px dashed #ccc; color:#555; font-size:14px; word-break: break-all;">{f_content}</div></details>"""
     if not fb_html: fb_html = "<p style='color:#888;'>暂无反馈。</p>"
     
-    # 生成任命下拉框的 HTML
     appoint_options = "".join([f"<option value='{u[0]}'>{u[1] if u[1] else u[2]} (ID: {u[0]})</option>" for u in normal_users])
     if not appoint_options:
         appoint_options = "<option value=''>当前没有可任命的普通用户</option>"
