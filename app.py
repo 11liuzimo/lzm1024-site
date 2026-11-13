@@ -30,7 +30,6 @@ def init_db():
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   content TEXT, 
                   publish_time TEXT)''')
-    # 新增：日记表
     c.execute('''CREATE TABLE IF NOT EXISTS diaries
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                   user_id TEXT, 
@@ -416,23 +415,9 @@ def chat_list():
 
     return f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>我的私信</title>
-    <style>
-        body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}
-        .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-        .layout {{ display: flex; max-width: 900px; margin: 20px auto; gap: 20px; padding: 0 10px; }}
-        .sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}
-        .sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}
-        .sidebar-icon svg {{ width: 22px; height: 22px; }}
-        .sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}
-        .main-content {{ flex: 1; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
-        .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}
-        .header h2 {{ margin:0; color:#333; font-size:18px; }}
-    </style>
+    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}.layout {{ display: flex; max-width: 900px; margin: 20px auto; gap: 20px; padding: 0 10px; }}.sidebar {{ width: 60px; background: #fff; border-radius: 8px; border: 1px solid #eee; display: flex; flex-direction: column; align-items: center; padding: 10px 0; height: fit-content; }}.sidebar-icon {{ display: flex; justify-content: center; align-items: center; width: 40px; height: 40px; margin: 10px 0; border-radius: 8px; color: #666; transition: all 0.2s ease; text-decoration: none; }}.sidebar-icon svg {{ width: 22px; height: 22px; }}.sidebar-icon:hover {{ color: #2c7be5; background-color: #f0f7ff; }}.main-content {{ flex: 1; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; }}.header {{ padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px; }}.header h2 {{ margin:0; color:#333; font-size:18px; }}</style>
     </head><body>
-        <div class="top-nav">
-            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
-            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
-        </div>
+        <div class="top-nav"><div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div><div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div></div>
         <div class="layout">
             <div class="sidebar">
                 <a href="/" title="首页" class="sidebar-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg></a>
@@ -508,12 +493,12 @@ def chat_room(other_id):
         
     return f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>与 {other_nickname} 聊天</title>
-    <style>body {{ margin:0; background:#f0f2f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}.container {{ max-width:700px; margin:20px auto; background:#ededed; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08); display:flex; flex-direction:column; height:85vh; overflow:hidden; }}.header {{ padding:15px 20px; background:#fff; border-bottom:1px solid #e0e0e0; display:flex; align-items:center; justify-content:space-between; }}.chat-box {{ flex:1; padding:20px; overflow-y:auto; display:flex; flex-direction:column; }}.input-area {{ padding:15px; background:#fff; border-top:1px solid #e0e0e0; display:flex; gap:10px; }}.input-area input {{ flex:1; padding:12px; border:1px solid #ddd; border-radius:8px; outline:none; font-size:15px; }}.input-area button {{ padding:0 25px; background:#07c160; color:white; border:none; border-radius:8px; cursor:pointer; font-size:15px; font-weight:bold; }}.nav-btn {{ text-decoration:none; color:#333; font-size:24px; display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; transition:0.2s; }}.nav-btn:hover {{ background:#f0f0f0; }}.home-btn {{ text-decoration:none; color:#07c160; font-size:14px; padding:8px 16px; border:1px solid #07c160; border-radius:6px; transition:0.2s; }}.home-btn:hover {{ background:#e8f8f0; }}</style>
+    <style>body {{ margin:0; background:#f0f2f5; font-family:sans-serif; }}.container {{ max-width:700px; margin:20px auto; background:#ededed; border-radius:12px; box-shadow:0 4px 20px rgba(0,0,0,0.08); display:flex; flex-direction:column; height:85vh; overflow:hidden; }}.header {{ padding:15px 20px; background:#fff; border-bottom:1px solid #e0e0e0; display:flex; align-items:center; justify-content:space-between; }}.chat-box {{ flex:1; padding:20px; overflow-y:auto; display:flex; flex-direction:column; }}.input-area {{ padding:15px; background:#fff; border-top:1px solid #e0e0e0; display:flex; gap:10px; }}.input-area input {{ flex:1; padding:12px; border:1px solid #ddd; border-radius:8px; outline:none; font-size:15px; }}.input-area button {{ padding:0 25px; background:#07c160; color:white; border:none; border-radius:8px; cursor:pointer; font-size:15px; font-weight:bold; }}.nav-btn {{ text-decoration:none; color:#333; font-size:24px; display:flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; }}.home-btn {{ text-decoration:none; color:#07c160; font-size:14px; padding:8px 16px; border:1px solid #07c160; border-radius:6px; }}</style>
     </head><body>
         <div class="container">
             <div class="header">
                 <div style="display:flex; align-items:center; gap:15px;">
-                    <a href="/lt" class="nav-btn" title="返回私信列表">←</a>
+                    <a href="/lt" class="nav-btn">←</a>
                     <h3 style="margin:0; font-size:18px; color:#333;">{other_nickname}</h3>
                 </div>
                 <a href="/" class="home-btn">返回首页</a>
@@ -536,7 +521,6 @@ def profile(uid):
     current_id = session.get('user_id')
     if not current_user: return redirect(url_for('index'))
     
-    # 核心修复：如果大管理员访问自己的主页，直接送去控制台
     if current_id == '0' and uid == '0':
         return redirect(url_for('admin_console'))
     
@@ -544,7 +528,6 @@ def profile(uid):
     c = conn.cursor()
     is_owner = (current_id == uid)
     
-    # 1. 处理修改个人资料（包含头像上传）
     if request.method == 'POST' and 'update_profile' in request.form and is_owner:
         new_nickname = request.form.get('nickname')
         new_bio = request.form.get('bio')
@@ -569,7 +552,6 @@ def profile(uid):
         conn.commit()
         return redirect(url_for('profile', uid=uid))
         
-    # 2. 处理发布留言
     if request.method == 'POST' and 'message' in request.form and is_owner:
         msg = request.form.get('message')
         if msg:
@@ -577,7 +559,6 @@ def profile(uid):
             conn.commit()
             return redirect(url_for('profile', uid=uid))
             
-    # 3. 处理管理员发布公告
     if request.method == 'POST' and 'publish_ann' in request.form and current_role in ['管理员', '大管理员']:
         ann_content = request.form.get('ann_content')
         if ann_content:
@@ -586,22 +567,18 @@ def profile(uid):
             conn.commit()
             return redirect(url_for('profile', uid=uid))
 
-    # 获取目标用户信息
     c.execute("SELECT nickname, username, avatar, bio, register_time, role FROM users WHERE user_id=?", (uid,))
     target_user = c.fetchone()
-    
     if not target_user:
         conn.close()
         return "<h1 style='text-align:center; margin-top:100px;'>该用户不存在</h1><a href='/'>返回首页</a>"
         
-    # 修复显示名字的核心逻辑
     nickname = target_user[0] if target_user[0] else target_user[1]
     avatar = target_user[2] if target_user[2] else ""
     bio = target_user[3] if target_user[3] else "欢迎来到我的个人主页"
     reg_time = target_user[4] if target_user[4] else "未知"
     target_role = target_user[5]
 
-    # 获取最新公告
     c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
     latest_ann = c.fetchone()
     ann_html = ""
@@ -616,7 +593,6 @@ def profile(uid):
     else:
         ann_html = "<p style='color:#999; text-align:center;'>暂无公告</p>"
 
-    # 获取留言板分页
     search_text = request.args.get('search', '').strip()
     page = int(request.args.get('page', 1))
     limit = 5
@@ -690,10 +666,6 @@ def profile(uid):
             .info-card {{ background: #fff; border-radius: 8px; border: 1px solid #eee; padding: 20px; }}
             .info-item {{ display: flex; justify-content: space-between; margin-bottom: 15px; font-size: 14px; }}
             .info-item span:first-child {{ color: #888; }}
-            .modal-overlay {{ display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.4); justify-content: center; align-items: center; z-index: 1000; }}
-            .modal-box {{ background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); text-align: left; width: 350px; font-family: sans-serif; }}
-            .modal-box input {{ width: 100%; padding: 8px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }}
-            .modal-box button {{ width: 100%; padding: 10px 0; background-color: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }}
         </style>
         <script>function openEditModal() {{ document.getElementById('editModal').style.display = 'flex'; }}</script>
     </head>
@@ -775,7 +747,18 @@ def profile(uid):
     </html>
     """
 
-# ================= 6. 日记功能 (专属 URL: /rj/<uid>/<序号>) =================
+@app.route('/del_msg/<int:msg_id>')
+def del_msg(msg_id):
+    user_id = session.get('user_id')
+    if not user_id: return redirect(url_for('index'))
+    conn = sqlite3.connect('database.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM visitors WHERE id=? AND user_id=?", (msg_id, user_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('profile', uid=user_id))
+
+# ================= 6. 日记功能 =================
 @app.route('/rj')
 def diary_list():
     user_id = session.get('user_id')
@@ -790,8 +773,7 @@ def diary_list():
     diary_html = ""
     total = len(diaries)
     for index, d in enumerate(diaries):
-        diary_index = total - index # 算出这是该用户的第几篇（从1开始，老的在最前）
-        
+        diary_index = total - index 
         diary_html += f"""
         <a href="/rj/{user_id}/{diary_index}" style="display:block; text-decoration:none; color:#333; background:#fff; padding:15px 20px; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">
             <div style="font-size:16px; font-weight:bold; color:#2c7be5; margin-bottom:5px;">{d[1]}</div>
@@ -802,34 +784,15 @@ def diary_list():
         diary_html = "<p style='text-align:center; color:#999; padding:30px;'>还没有写过日记，快去记录第一篇吧！</p>"
 
     return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <title>我的日记</title>
-        <style>
-            body {{ margin:0; background:#f5f5f5; font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-            .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}
-            .main-content {{ max-width: 800px; margin: 20px auto; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }}
-            .header {{ padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }}
-            .header h2 {{ margin:0; color:#333; font-size:18px; }}
-        </style>
-    </head>
-    <body>
-        <div class="top-nav">
-            <div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div>
-            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
-        </div>
-
+    <!DOCTYPE html><html><head><meta charset="UTF-8"><title>我的日记</title>
+    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }}.main-content {{ max-width: 800px; margin: 20px auto; background:#fff; border-radius: 8px; border: 1px solid #eee; overflow: hidden; }}.header {{ padding:20px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }}.header h2 {{ margin:0; color:#333; font-size:18px; }}</style>
+    </head><body>
+        <div class="top-nav"><div><a href="/" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回首页</a></div><div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div></div>
         <div class="main-content">
-            <div class="header">
-                <h2>📔 我的日记</h2>
-                <a href="/rj/new" style="text-decoration:none; padding:8px 15px; background:#5cb85c; color:white; border-radius:4px; font-size:14px;">写日记</a>
-            </div>
+            <div class="header"><h2>📔 我的日记</h2><a href="/rj/new" style="text-decoration:none; padding:8px 15px; background:#5cb85c; color:white; border-radius:4px; font-size:14px;">写日记</a></div>
             <div>{diary_html}</div>
         </div>
-    </body>
-    </html>
+    </body></html>
     """
 
 @app.route('/rj/new', methods=['GET', 'POST'])
@@ -869,9 +832,7 @@ def diary_new():
 def diary_detail(uid, diary_index):
     current_user_id = session.get('user_id')
     if not current_user_id: return redirect(url_for('index'))
-    
-    if current_user_id != uid:
-        return "无权查看他人的日记！<a href='/rj'>返回</a>"
+    if current_user_id != uid: return "无权查看他人的日记！<a href='/rj'>返回</a>"
         
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
@@ -879,19 +840,14 @@ def diary_detail(uid, diary_index):
     diaries = c.fetchall()
     conn.close()
     
-    if diary_index < 1 or diary_index > len(diaries):
-        return "这篇日记不存在！<a href='/rj'>返回列表</a>"
-        
+    if diary_index < 1 or diary_index > len(diaries): return "这篇日记不存在！<a href='/rj'>返回列表</a>"
     diary = diaries[diary_index - 1]
     
     return f"""
     <!DOCTYPE html><html><head><meta charset="UTF-8"><title>{diary[1]}</title>
-    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }} .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }} .container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:30px; box-shadow:0 4px 12px rgba(0,0,0,0.02); }} h1 {{ color:#333; margin-top:0; border-bottom:2px solid #eee; padding-bottom:15px; }} .meta {{ color:#999; font-size:13px; margin-bottom:20px; }} .content {{ line-height:1.8; color:#333; white-space:pre-wrap; }} .btn-del {{ display:inline-block; margin-top:30px; padding:8px 15px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:14px; }}</style>
+    <style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }} .top-nav {{ background: #fff; padding: 10px 20px; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }} .container {{ max-width:600px; margin:20px auto; background:#fff; border-radius:8px; border:1px solid #eee; padding:30px; }} h1 {{ color:#333; margin-top:0; border-bottom:2px solid #eee; padding-bottom:15px; }} .meta {{ color:#999; font-size:13px; margin-bottom:20px; }} .content {{ line-height:1.8; color:#333; white-space:pre-wrap; }} .btn-del {{ display:inline-block; margin-top:30px; padding:8px 15px; background:#d9534f; color:white; text-decoration:none; border-radius:4px; font-size:14px; }}</style>
     </head><body>
-        <div class="top-nav">
-            <div><a href="/rj" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回日记列表</a></div>
-            <div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div>
-        </div>
+        <div class="top-nav"><div><a href="/rj" style="text-decoration:none; color:#333; font-size:18px; font-weight:bold;">← 返回日记列表</a></div><div><a href="/logout" style="text-decoration:none; color:#666;">退出登录</a></div></div>
         <div class="container">
             <h1>{diary[1]}</h1>
             <div class="meta">📅 {diary[3]}</div>
@@ -905,7 +861,6 @@ def diary_detail(uid, diary_index):
 def diary_delete(diary_id):
     user_id = session.get('user_id')
     if not user_id: return redirect(url_for('index'))
-    
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
     c.execute("DELETE FROM diaries WHERE id=? AND user_id=?", (diary_id, user_id))
