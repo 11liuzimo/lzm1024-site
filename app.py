@@ -51,12 +51,13 @@ def init_db():
     conn.close()
 
 # ================= 1. 首页 =================
+# ================= 1. 首页 =================
 @app.route('/')
 def index():
     user = session.get('username')
     user_id = session.get('user_id')
     role = session.get('role')
-    
+
     if not user:
         return """
         <div style="text-align:center; margin-top:150px; font-family:sans-serif;">
@@ -70,8 +71,6 @@ def index():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
 
-        
-    # 普通/管理员的常规首页
     c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
     latest_ann = c.fetchone()
     ann_html = ""
@@ -88,27 +87,33 @@ def index():
 
     c.execute("SELECT user_id, username, message FROM visitors ORDER BY id DESC LIMIT 3")
     recent_msgs = c.fetchall()
+
     c.execute("SELECT user_id, nickname, username, role, avatar FROM users WHERE role != '大管理员' ORDER BY id DESC LIMIT 4")
     recent_users = c.fetchall()
+
     c.execute('''SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END AS other_id FROM messages WHERE sender_id = ? OR receiver_id = ? LIMIT 3''', (user_id, user_id, user_id))
     recent_chats = c.fetchall()
+
     c.execute("SELECT id, title, create_time FROM diaries WHERE user_id=? ORDER BY id DESC LIMIT 3", (user_id,))
     recent_diaries = c.fetchall()
-    
+
     forum_html = ""
     for m in recent_msgs:
         m_uid, m_uname, m_text = m
         short_text = m_text[:15] + "..." if len(m_text) > 15 else m_text
         forum_html += f"""<div style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:left; font-size:13px;"><span style="color:#888;">【{m_uid}】<a href="/user/{m_uid}" style="color:#2c7be5; text-decoration:none;">{m_uname}</a>：</span><span style="color:#333;">{short_text}</span></div>"""
+    
     if not forum_html: forum_html = "<p style='color:#999; font-size:13px;'>还没有人留言，快去抢沙发吧！</p>"
 
     users_html = ""
     for u in recent_users:
-        uid, nick, uname, role, avatar = u
+        uid, nick, uname, u_role, avatar = u
         u_nick = nick if nick else uname
-        role_color = "#d9534f" if role == '管理员' else "#5cb85c"
+        role_color = "#d9534f" if u_role == '管理员' else "#5cb85c"
         avatar_html = f"<img src='{avatar}' style='width:30px; height:30px; border-radius:50%; object-fit:cover;'>" if avatar else f"<div style='width:30px; height:30px; border-radius:50%; background:#ccc; display:flex; justify-content:center; align-items:center; color:#fff; font-size:14px;'>{u_nick[0].upper()}</div>"
-        users_html += f"""<a href="/user/{uid}" style="text-decoration:none; color:#333; display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:8px;">{avatar_html}<div><b style="color:#2c7be5; font-size:13px;">{u_nick}</b></div></div><span style="font-size:11px; padding:2px 6px; border-radius:10px; color:#fff; background:{role_color};">{role}</span></a>"""
+        
+        users_html += f"""<a href="/user/{uid}" style="text-decoration:none; color:#333; display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'"><div style="display:flex; align-items:center; gap:8px;">{avatar_html}<div><b style="color:#2c7be5; font-size:13px;">{u_nick}</b></div></div><span style="font-size:11px; padding:2px 6px; border-radius:10px; color:#fff; background:{role_color};">{u_role}</span></a>"""
+        
     if not users_html: users_html = "<p style='color:#999; font-size:13px;'>暂无用户</p>"
 
     recent_chat_html = ""
@@ -120,23 +125,25 @@ def index():
             nickname = user_info[0] if user_info[0] else user_info[1]
             avatar = user_info[2] if user_info[2] else ""
             avatar_html = f"<img src='{avatar}' style='width:40px; height:40px; border-radius:50%; object-fit:cover;'>" if avatar else f"<div style='width:40px; height:40px; border-radius:50%; background:#ccc; display:flex; justify-content:center; align-items:center; color:#fff; font-size:16px;'>{nickname[0].upper()}</div>"
+            
             recent_chat_html += f"""<a href="/lt/{other_id}" style="text-decoration:none; color:#333; display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid #f0f0f0;" onmouseover="this.style.background='#f9f9f9'" onmouseout="this.style.background='#fff'">{avatar_html}<span style="font-size:13px; color:#2c7be5; font-weight:bold;">{nickname}</span></a>"""
+            
     if not recent_chat_html: recent_chat_html = "<p style='color:#999; font-size:13px;'>暂无聊天记录，快去私信找人聊天吧！</p>"
 
     diary_html = ""
     for d in recent_diaries:
         diary_html += f"""<div style="padding:8px 0; border-bottom:1px solid #f0f0f0; text-align:left; font-size:13px;"><a href="/rj/{user_id}/{d[0]}" style="color:#333; text-decoration:none; font-weight:bold;">{d[1]}</a><div style="font-size:11px; color:#aaa; margin-top:2px;">📅 {d[2]}</div></div>"""
+        
     if not diary_html: diary_html = "<p style='color:#999; font-size:13px;'>还没有写过日记，快去记录吧！</p>"
 
     conn.close()
-
     nav = f'''
     <div style="text-align: right; padding: 10px 20px; background:#fff; border-bottom:1px solid #ddd;">
-        <span>欢迎，<a href="/user/{user_id}" style="color:#2c7be5; text-decoration:none;">{user}</a></span> | 
+        <span>欢迎，<a href="/user/{user_id}" style="color:#2c7be5; text-decoration:none;">{user}</a> ({role})</span> | 
         <a href="/logout" style="color:#666; text-decoration:none; margin-left:15px;">退出</a>
     </div>
     '''
-    
+
     return f"""
     <!DOCTYPE html>
     <html>
@@ -152,7 +159,6 @@ def index():
             .module-title {{ margin: 0; color: #333; font-size: 16px; font-weight: bold; }}
             .module-more {{ text-decoration: none; color: #2c7be5; font-size: 12px; }}
             .module-more:hover {{ text-decoration: underline; }}
-            /* 滚动条添加在这里 */
             .module-content {{ flex: 1; overflow-y: auto; padding-right: 5px; }}
         </style>
     </head>
@@ -168,17 +174,14 @@ def index():
                     <div class="module-header"><h3 class="module-title">📝 公共论坛</h3><a href="/gglt" class="module-more">进入 →</a></div>
                     <div class="module-content">{forum_html}</div>
                 </div>
-
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">👥 活跃用户</h3><a href="/user" class="module-more">查看全部 →</a></div>
                     <div class="module-content">{users_html}</div>
                 </div>
-
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">💬 最近私信</h3><a href="/lt" class="module-more">进入 →</a></div>
                     <div class="module-content">{recent_chat_html}</div>
                 </div>
-
                 <div class="module-card">
                     <div class="module-header"><h3 class="module-title">📔 我的日记</h3><a href="/rj" class="module-more">进入 →</a></div>
                     <div class="module-content">{diary_html}</div>
