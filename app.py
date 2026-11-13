@@ -70,16 +70,6 @@ def index():
     conn = sqlite3.connect('database.db')
     c = conn.cursor()
 
-    # 如果是大管理员，显示专属的数据统计面板
-    if role == '大管理员':
-        c.execute("SELECT COUNT(*) FROM users WHERE role != '大管理员'")
-        total_users = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM visitors")
-        total_msgs = c.fetchone()[0]
-        conn.close()
-        return f"""
-        <!DOCTYPE html><html><head><meta charset="UTF-8"><title>大管理控制台 - 首页</title><style>body {{ margin:0; background:#f5f5f5; font-family:sans-serif; }}.container {{ max-width: 800px; margin: 40px auto; background:#fff; padding:40px; border-radius:12px; border:1px solid #ddd; box-shadow:0 4px 15px rgba(0,0,0,0.05); }}h1 {{ color:#d9534f; text-align:center; }}</style></head><body><div class="container"><h1>👑 大管理员专属控制中心</h1><p style="text-align:center; color:#666;">欢迎回来，最高权限者。</p><hr style="border:0; border-top:1px solid #eee; margin:30px 0;"><div style="display:flex; justify-content:space-around; text-align:center;"><div><h2>{total_users}</h2><p style="color:#888;">全站用户</p></div><div><h2>{total_msgs}</h2><p style="color:#888;">全站留言</p></div></div><br><br><div style="text-align:center;"><a href="/admin" style="padding:12px 30px; background:#d9534f; color:white; text-decoration:none; border-radius:6px; font-weight:bold;">进入管理控制台</a><br><br><a href="/logout" style="color:#666; text-decoration:none;">退出登录</a></div></div></body></html>
-        """
         
     # 普通/管理员的常规首页
     c.execute("SELECT content, publish_time FROM announcements ORDER BY id DESC LIMIT 1")
